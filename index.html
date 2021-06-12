@@ -145,6 +145,67 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/06/12/1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/06/12/1/" class="post-title-link" itemprop="url">Untitled</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-06-12 10:04:14" itemprop="dateCreated datePublished" datetime="2021-06-12T10:04:14+00:00">2021-06-12</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="初识epoll"><a href="#初识epoll" class="headerlink" title="初识epoll"></a>初识epoll</h1><p>epoll作为linux内核最常用的通信方式，必须要好好了解一下他的用法，此处记录一下对epoll整个通讯流程的理解。</p>
+<p><img src="process_1.png"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">//1.第一步是创建epoll句柄</span><br><span class="line">int epfd=epoll_create(256);</span><br><span class="line"></span><br><span class="line">//2.建立一个监听socket，专门监听某个端口，并对所有尝试连接此端口的client，建立tcp连接</span><br><span class="line">int listenfd= socket(AF_INET,SOCK_STREAM,0);</span><br><span class="line">bind(listenfd,...);</span><br><span class="line">listen(listenfd,...);</span><br><span class="line"></span><br><span class="line">//3.把监听socket注册进句柄中，并监听该socket的读事件</span><br><span class="line">epoll_event ev</span><br><span class="line">ev.data.fd=listenfd</span><br><span class="line">ev.events=EPOLLIN | EPOLLET;</span><br><span class="line">epoll_ctl(epfd,EPOLL_CTL_ADD,listenfd,&amp;ev);</span><br><span class="line"></span><br><span class="line">//4.epoll_wait等待数据到来，如果监听的某个socket返回数据则进程苏醒进行处理，值得注意的是epoll只处理有数据返回的socket</span><br><span class="line">epoll_event events[20];</span><br><span class="line">while（1）&#123;</span><br><span class="line">	nfds=epoll_wait(epfd,events, ... );</span><br><span class="line">	for(i=0;i&lt;nfds;i++)</span><br><span class="line">	//监听端口有数据到来，说明有新连接需要建立</span><br><span class="line">	if(events[i].data.fd==listenfd)</span><br><span class="line">	&#123;</span><br><span class="line">	</span><br><span class="line">		//建立连接，并监听读事件</span><br><span class="line">		int connfd=accept(listenfd,...);</span><br><span class="line">		ev.data.fd=connfd;</span><br><span class="line">		ev.events=EPOLLIN | EPOLLET//监听读事件</span><br><span class="line">		epoll_ctl(epfd,EPOLL_CTL_ADD,connfd,&amp;ev)</span><br><span class="line">		</span><br><span class="line">	&#125;</span><br><span class="line">	else if(events[i].events&amp;EPOLLIN)&#123;</span><br><span class="line">	</span><br><span class="line">		//有数据可读，并修改监听事件为 “写”</span><br><span class="line">		int sockfd=events[i].data.fd</span><br><span class="line">		read(sockfd, ... );</span><br><span class="line">		ev.events=EPOLLOUT | EPOLLET;</span><br><span class="line">		epoll_ctl(epfd,EPOLL_CTL_MOD,sockfd,&amp;ev)</span><br><span class="line">		</span><br><span class="line">	&#125;</span><br><span class="line">	else if(events[i].events&amp;EPOLLOUT)&#123;</span><br><span class="line">	</span><br><span class="line">		//有数据可写，并修改监听事件为 “读”</span><br><span class="line">		int sockfd=events[i].data.fd</span><br><span class="line">		send(sockfd, ... );</span><br><span class="line">		ev.events=EPOLLIN | EPOLLET;</span><br><span class="line">		epoll_ctl(epfd,EPOLL_CTL_MOD,sockfd,&amp;ev)</span><br><span class="line">		</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://example.com/2021/06/12/JXF/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -169,7 +230,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2021-06-12 07:21:17" itemprop="dateCreated datePublished" datetime="2021-06-12T07:21:17+00:00">2021-06-12</time>
+              <time title="Created: 2021-06-12 10:04:14" itemprop="dateCreated datePublished" datetime="2021-06-12T10:04:14+00:00">2021-06-12</time>
             </span>
 
           
@@ -185,76 +246,6 @@
       
           <p>第一篇博客</p>
 <p>弄了3个小时终于搭好了个人博客，因为这个博客太麻烦，以至于我都不想写博客了ORZ</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2021/06/12/hello-world/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="John Doe">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/06/12/hello-world/" class="post-title-link" itemprop="url">Hello World</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2021-06-12 07:21:17" itemprop="dateCreated datePublished" datetime="2021-06-12T07:21:17+00:00">2021-06-12</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
 
       
     </div>
