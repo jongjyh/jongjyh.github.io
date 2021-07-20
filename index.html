@@ -169,7 +169,7 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2021-07-20 11:20:40" itemprop="dateCreated datePublished" datetime="2021-07-20T11:20:40+00:00">2021-07-20</time>
+              <time title="创建时间：2021-07-20 11:25:27" itemprop="dateCreated datePublished" datetime="2021-07-20T11:25:27+00:00">2021-07-20</time>
             </span>
 
           
@@ -187,6 +187,64 @@
 <p><img src="process_1.png"></p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">//1.第一步是创建epoll句柄</span><br><span class="line">int epfd=epoll_create(256);</span><br><span class="line"></span><br><span class="line">//2.建立一个监听socket，专门监听某个端口，并对所有尝试连接此端口的client，建立tcp连接</span><br><span class="line">int listenfd= socket(AF_INET,SOCK_STREAM,0);</span><br><span class="line">bind(listenfd,...);</span><br><span class="line">listen(listenfd,...);</span><br><span class="line"></span><br><span class="line">//3.把监听socket注册进句柄中，并监听该socket的读事件</span><br><span class="line">epoll_event ev</span><br><span class="line">ev.data.fd=listenfd</span><br><span class="line">ev.events=EPOLLIN | EPOLLET;</span><br><span class="line">epoll_ctl(epfd,EPOLL_CTL_ADD,listenfd,&amp;ev);</span><br><span class="line"></span><br><span class="line">//4.epoll_wait等待数据到来，如果监听的某个socket返回数据则进程苏醒进行处理，值得注意的是epoll只处理有数据返回的socket</span><br><span class="line">epoll_event events[20];</span><br><span class="line">while（1）&#123;</span><br><span class="line">	nfds=epoll_wait(epfd,events, ... );</span><br><span class="line">	for(i=0;i&lt;nfds;i++)</span><br><span class="line">	//监听端口有数据到来，说明有新连接需要建立</span><br><span class="line">	if(events[i].data.fd==listenfd)</span><br><span class="line">	&#123;</span><br><span class="line">	</span><br><span class="line">		//建立连接，并监听读事件</span><br><span class="line">		int connfd=accept(listenfd,...);</span><br><span class="line">		ev.data.fd=connfd;</span><br><span class="line">		ev.events=EPOLLIN | EPOLLET//监听读事件</span><br><span class="line">		epoll_ctl(epfd,EPOLL_CTL_ADD,connfd,&amp;ev)</span><br><span class="line">		</span><br><span class="line">	&#125;</span><br><span class="line">	else if(events[i].events&amp;EPOLLIN)&#123;</span><br><span class="line">	</span><br><span class="line">		//有数据可读，并修改监听事件为 “写”</span><br><span class="line">		int sockfd=events[i].data.fd</span><br><span class="line">		read(sockfd, ... );</span><br><span class="line">		ev.events=EPOLLOUT | EPOLLET;</span><br><span class="line">		epoll_ctl(epfd,EPOLL_CTL_MOD,sockfd,&amp;ev)</span><br><span class="line">		</span><br><span class="line">	&#125;</span><br><span class="line">	else if(events[i].events&amp;EPOLLOUT)&#123;</span><br><span class="line">	</span><br><span class="line">		//有数据可写，并修改监听事件为 “读”</span><br><span class="line">		int sockfd=events[i].data.fd</span><br><span class="line">		send(sockfd, ... );</span><br><span class="line">		ev.events=EPOLLIN | EPOLLET;</span><br><span class="line">		epoll_ctl(epfd,EPOLL_CTL_MOD,sockfd,&amp;ev)</span><br><span class="line">		</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
 
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/07/20/JWT/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Jongjyh">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Olleh的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/07/20/JWT/" class="post-title-link" itemprop="url">未命名</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-07-20 11:25:27" itemprop="dateCreated datePublished" datetime="2021-07-20T11:25:27+00:00">2021-07-20</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>title: 什么是JWT</p>
 
       
     </div>
@@ -230,7 +288,7 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2021-07-20 11:20:40" itemprop="dateCreated datePublished" datetime="2021-07-20T11:20:40+00:00">2021-07-20</time>
+              <time title="创建时间：2021-07-20 11:25:27" itemprop="dateCreated datePublished" datetime="2021-07-20T11:25:27+00:00">2021-07-20</time>
             </span>
 
           
@@ -327,7 +385,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">2</span>
+          <span class="site-state-item-count">3</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
