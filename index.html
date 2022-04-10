@@ -145,6 +145,255 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/UniLMv2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Jongjyh">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jongjyh的算法空间">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/04/10/UniLMv2/" class="post-title-link" itemprop="url">论文研读 ｜ UniLMv2</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-04-10 17:05:00 / 修改时间：07:00:26" itemprop="dateCreated datePublished" datetime="2022-04-10T17:05:00+00:00">2022-04-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AE%BA%E6%96%87-%E5%AE%9E%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">论文&实现</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="UniLMv2"><a href="#UniLMv2" class="headerlink" title="UniLMv2"></a>UniLMv2</h1><p>微软提出的另一个尝试统一autoencoder和autoregressive的一个预训练大模型</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/microsoft/unilm">Code</a> &amp; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2002.12804">Paper</a></p>
+<h1 id="Methodology"><a href="#Methodology" class="headerlink" title="Methodology"></a>Methodology</h1><p>论文提出了以下三个方法尝试在autoencoder的框架下把autoregressive融合进来</p>
+<ol>
+<li>Pseudo Mask</li>
+<li>blockwise factorization </li>
+<li>PAR</li>
+</ol>
+<p>UniLM提出增加一种新的Mask（i.e Pseudo Mask）使LM能够以autoeocode的方式训练，这样在预训练时就能同时进行autoencoder和autoregressive式的训练，由于这仍是cloze式的预训练方式，所以能直接使用诸如Bert这类纯encoder模型。</p>
+<h2 id="Pseudo-Mask"><a href="#Pseudo-Mask" class="headerlink" title="Pseudo Mask"></a>Pseudo Mask</h2><p><strong>存在的问题</strong></p>
+<ul>
+<li>传统的Mask在输入中随机遮盖几个词，用未遮盖的词去预测Mask中的词语，但这忽略了Mask之间的关系（被遮盖住了不知道是什么）。</li>
+<li>在autoregresive的预训练目标中，我们往往能够利用上文中的信息，但无法使用下文的信息（单方向预测），所以autoregresive和autoencoder其实是一种互补的预训练方式</li>
+<li>AR前边预测出的mask能够被attempt但AE不行，AE中拥有的下文信息却但AR attmpt不到</li>
+</ul>
+<p>为了解决以上问题，Pseudo Mask被提出</p>
+<p><img src="https://tva1.sinaimg.cn/large/e6c9d24ely1h0vgw6yp2kj21eu0sowlg.jpg" alt="截屏2022-04-02 下午4.40.47"></p>
+<ol>
+<li>Pseudo Mask可以看做是和传统的Mask同样的东西，只不过这是在AR下的Mask</li>
+<li>Pseudo Mask与XL-net中的处理相类似，做了因子排序的处理，每次sample一种排序方式比如（4，5 –&gt; 2）用前边的因子去预测后边的因子，这样就能补齐AR中无法attmpt下文的缺陷了</li>
+<li>值得注意的是P Mask拥有相同的Position Embedding，因此即使被打乱了顺序模型仍然知道被mask的词之间的顺序</li>
+<li>实际Input变成了两段，前边是传统的Mask式，后边是Pseudo Mask式，但后边的输入序列只有Masked Token+Pseudo Mask</li>
+</ol>
+<h2 id="PAR-amp-Blockwise-factorization"><a href="#PAR-amp-Blockwise-factorization" class="headerlink" title="PAR &amp; Blockwise factorization"></a>PAR &amp; Blockwise factorization</h2><p>与传统AR不同，AR往往是一个token一个token的预测，PAR采用了一种<strong>span</strong>的方式，具体来说：</p>
+<ul>
+<li>随机sample一种因子序列</li>
+<li>前边的因子必须一次性预测下个因子中内部所有的token</li>
+<li>PAR采用的Mask（40%span，60%single token）</li>
+</ul>
+<p><img src="https://tva1.sinaimg.cn/large/e6c9d24ely1h0vh7tx6hvj21ec0d6tcg.jpg" alt="截屏2022-04-02 下午4.52.49"></p>
+<h2 id="Finetuning"><a href="#Finetuning" class="headerlink" title="Finetuning"></a>Finetuning</h2><ul>
+<li>对于NLU任务，和Bert类似把[CLS]当作Input embedding，把[CLS]输出的向量直接输入到task-specific layer</li>
+<li>对于NLG任务，输入是src+target （i.e [SOS] SRC [EOS] TGT [EOS]），但是target是被mask的，所以finetune的目标是恢复target，复现的代码中是为用pseudo mask替换了所有的target token，然后用bert预测所有的pseudo mask原本的token</li>
+</ul>
+<h2 id="Experiment"><a href="#Experiment" class="headerlink" title="Experiment"></a>Experiment</h2><p><img src="https://tva1.sinaimg.cn/large/e6c9d24ely1h0vhi6b54aj21ek0nmagj.jpg" alt="截屏2022-04-02 下午5.02.45"></p>
+<p><img src="https://tva1.sinaimg.cn/large/e6c9d24ely1h0vhq3gw4ij21g40ja455.jpg" alt="image-20220402171023121"></p>
+<p><img src="https://tva1.sinaimg.cn/large/e6c9d24ely1h0vhvfppv5j21da0k8wjs.jpg" alt="image-20220402171532109"></p>
+<ul>
+<li>UniLMv2效果无论是在NLU还是NLG上效果都是很好的，在NLG上甚至比肩了一些large模型</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/transformers%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E8%AE%A1%E5%88%92%20-%20BertGeneration/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Jongjyh">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jongjyh的算法空间">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/04/10/transformers%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E8%AE%A1%E5%88%92%20-%20BertGeneration/" class="post-title-link" itemprop="url">transformers源码阅读计划 - BertGeneration</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-04-10 17:05:00 / 修改时间：07:00:26" itemprop="dateCreated datePublished" datetime="2022-04-10T17:05:00+00:00">2022-04-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AE%BA%E6%96%87-%E5%AE%9E%E7%8E%B0/" itemprop="url" rel="index"><span itemprop="name">论文&实现</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="transformers源码阅读计划-BertGeneration"><a href="#transformers源码阅读计划-BertGeneration" class="headerlink" title="transformers源码阅读计划 - BertGeneration"></a>transformers源码阅读计划 - BertGeneration</h1><p> transformers是一个基于Pytorch的NLP框架，集成了模型，训练器，tokenizer一系列工具，而且都封装得非常好。更重要的是这个库也复现了许多非常经典的模型比如Bert，XLNet，所以开始一个transformers的源码阅读计划，一方面提高自己的代码复现能力，一边学习transformers内部的结构。</p>
+<h2 id="BertGeneration"><a href="#BertGeneration" class="headerlink" title="BertGeneration"></a>BertGeneration</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/1907.12461">Papers</a> </p>
+<p>BertGeneration提出用Bert同时充当decoder角色来充分利用预训练成本，具体来说非常简单，按照transformer的思想，encoder和decoder的差别不过多了一层cross attention layer。</p>
+<p>![image-20220409193520425](/Users/noah/Library/Application Support/typora-user-images/image-20220409193520425.png)</p>
+<p><img src="https://tva1.sinaimg.cn/large/e6c9d24ely1h13pd91ihij216e0oi459.jpg" alt="image-20220409193920098"></p>
+<ul>
+<li>论文还对比了不同情况下这种以Bert为原型的Seq2Seq架构在机器翻译上的效果，发现共享参数的效果也不错</li>
+</ul>
+<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p><strong>源码路径（models/bert_generation/modeling_bert_generation.py）</strong></p>
+<p>模型由五个类构成：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationEmbeddings</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line"><span class="comment"># bert的word_embedding</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationPreTrainedModel</span>(<span class="params">PreTrainedModel</span>):</span></span><br><span class="line"><span class="comment"># 一个用来保存和恢复checkpoint的抽象类，继承了transformers内部的独有类PreTrainedModel</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationEncoder</span>(<span class="params">BertGenerationPreTrainedModel</span>):</span></span><br><span class="line"><span class="comment"># 最重要的类，可以根据args 变成 encoder or decoder</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationOnlyLMHead</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line"><span class="comment"># decoder的分类头，用来做vocab的分类的</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationDecoder</span>(<span class="params">BertGenerationPreTrainedModel</span>):</span></span><br><span class="line"><span class="comment"># encoder的行为和decoder的行为不同，用一个decoder类定义decoder的行为</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="BertGenerationEncoder"><a href="#BertGenerationEncoder" class="headerlink" title="BertGenerationEncoder"></a><strong>BertGenerationEncoder</strong></h2><p>transformers内部的模型其实都是nn.Module的子类，重点关注___<em>init</em>___和<strong>forward</strong>两个函数</p>
+<ul>
+<li><strong>init</strong></li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">  <span class="built_in">super</span>().__init__(config)</span><br><span class="line">  <span class="comment"># config是模型的参数类，定义了模型的一些超参</span></span><br><span class="line">  self.config = config</span><br><span class="line">  <span class="comment"># embeddings 使用了自己定义的embeddings，encoder直接使用了bert内部的encoder</span></span><br><span class="line">  self.embeddings = BertGenerationEmbeddings(config)</span><br><span class="line">  <span class="comment"># is_decoder在config被传入BertEncoder</span></span><br><span class="line">  self.encoder = BertEncoder(config)</span><br><span class="line"></span><br><span class="line">  <span class="comment"># Initialize weights and apply final processing</span></span><br><span class="line">  self.post_init()</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>BertEncoder &amp; BertLayer</li>
+</ul>
+<p>Encoder这个类主要是判断一下是否传入了<code>is_decoder &amp; add_crossattention</code>这两参数，<code>True</code>时行为差异会比较不同，具体来说</p>
+<ul>
+<li><p>Bert Generation这个类复用了transforemrs内部的bert实现<code>BertEncoder</code>&amp;<code>BertLayer</code></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertEncoder</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.config = config</span><br><span class="line">        self.layer = nn.ModuleList([BertLayer(config) <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(config.num_hidden_layers)])</span><br><span class="line">        self.gradient_checkpointing = <span class="literal">False</span></span><br></pre></td></tr></table></figure>
+
+<p>layer使用ModuleList容器包装起来，num_hidden_layers决定了这样的BertLayer有几层，在forward中会用for循环展开进行前向计算</p>
+</li>
+<li><p><code>BertLayer</code>也就是Bert-base的12层layer中的layer实现，当is_decoder传入时会在最末端增加一层cross-attention</p>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertLayer</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.chunk_size_feed_forward = config.chunk_size_feed_forward</span><br><span class="line">        self.seq_len_dim = <span class="number">1</span></span><br><span class="line">        <span class="comment"># self-attention</span></span><br><span class="line">        self.attention = BertAttention(config)</span><br><span class="line">        self.is_decoder = config.is_decoder</span><br><span class="line">        self.add_cross_attention = config.add_cross_attention</span><br><span class="line">        <span class="comment"># 增加了cross-attention</span></span><br><span class="line">        <span class="keyword">if</span> self.add_cross_attention:</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> self.is_decoder:</span><br><span class="line">                <span class="keyword">raise</span> ValueError(<span class="string">f&quot;<span class="subst">&#123;self&#125;</span> should be used as a decoder model if cross attention is added&quot;</span>)</span><br><span class="line">            <span class="comment"># 发现cross-attention和self-attention使用的是同一个attention类说明进行了复用</span></span><br><span class="line">            self.crossattention = BertAttention(config, position_embedding_type=<span class="string">&quot;absolute&quot;</span>)</span><br><span class="line">        <span class="comment"># layer中的全连接层</span></span><br><span class="line">        self.intermediate = BertIntermediate(config)</span><br><span class="line">        self.output = BertOutput(config)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> self.is_decoder <span class="keyword">and</span> encoder_hidden_states <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">hasattr</span>(self, <span class="string">&quot;crossattention&quot;</span>):</span><br><span class="line">        <span class="keyword">raise</span> ValueError(</span><br><span class="line">            <span class="string">f&quot;If `encoder_hidden_states` are passed, <span class="subst">&#123;self&#125;</span> has to be instantiated with cross-attention layers by setting `config.add_cross_attention=True`&quot;</span></span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="comment"># cross_attn cached key/values tuple is at positions 3,4 of past_key_value tuple</span></span><br><span class="line">    cross_attn_past_key_value = past_key_value[-<span class="number">2</span>:] <span class="keyword">if</span> past_key_value <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">else</span> <span class="literal">None</span></span><br><span class="line">    cross_attention_outputs = self.crossattention(</span><br><span class="line">        attention_output, <span class="comment"># self-attn的输出做cross-attn的Q输入</span></span><br><span class="line">        attention_mask,</span><br><span class="line">        head_mask,</span><br><span class="line">        encoder_hidden_states,<span class="comment"># 来自encoder的隐藏层做K与V的输入</span></span><br><span class="line">        encoder_attention_mask,</span><br><span class="line">        cross_attn_past_key_value,</span><br><span class="line">        output_attentions,</span><br><span class="line">    )</span><br><span class="line">    attention_output = cross_attention_outputs[<span class="number">0</span>]</span><br><span class="line">    outputs = outputs + cross_attention_outputs[<span class="number">1</span>:-<span class="number">1</span>]  <span class="comment"># add cross attentions if we output attention weights</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>forward的输入</strong></li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    self,</span></span></span><br><span class="line"><span class="params"><span class="function">    input_ids=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    attention_mask=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    position_ids=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    head_mask=<span class="literal">None</span>,<span class="comment"># 前四个都是tokenizer的输出</span></span></span></span><br><span class="line"><span class="params"><span class="function">    inputs_embeds=<span class="literal">None</span>,<span class="comment"># 可以直接输入embeding而不是ids，input_ids,inputs_embeds只能输入一个</span></span></span></span><br><span class="line"><span class="params"><span class="function">    encoder_hidden_states=<span class="literal">None</span>,<span class="comment"># 作为decoder时会使用，Cross-Attn的KV</span></span></span></span><br><span class="line"><span class="params"><span class="function">    encoder_attention_mask=<span class="literal">None</span>,<span class="comment"># 作为decoder时会使用，用来屏蔽[PAD]</span></span></span></span><br><span class="line"><span class="params"><span class="function">    past_key_values=<span class="literal">None</span>,<span class="comment"># 作为decoder时会使用，预先算好的所有BertLayer的KV</span></span></span></span><br><span class="line"><span class="params"><span class="function">    use_cache=<span class="literal">None</span>,<span class="comment"># 作为encoder时，True会保留所有的BertLayer的KV然后供decoder使用也就是上面的arg</span></span></span></span><br><span class="line"><span class="params"><span class="function">    output_attentions=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    output_hidden_states=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    return_dict=<span class="literal">None</span>,<span class="comment"># 输出时调整输出格式的一些bool参数，详细可以去看doc</span></span></span></span><br><span class="line"><span class="params"><span class="function"></span>):</span></span><br></pre></td></tr></table></figure>
+
+<p>forward函数也只是简单对encoder进行计算一下然后返回结果</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">embedding_output = self.embeddings(</span><br><span class="line">  input_ids=input_ids,</span><br><span class="line">  position_ids=position_ids,</span><br><span class="line">  inputs_embeds=inputs_embeds,</span><br><span class="line">  past_key_values_length=past_key_values_length,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">encoder_outputs = self.encoder(</span><br><span class="line">  embedding_output,</span><br><span class="line">  attention_mask=extended_attention_mask,</span><br><span class="line">  head_mask=head_mask,</span><br><span class="line">  encoder_hidden_states=encoder_hidden_states,<span class="comment"># 当is_decoder=True时以下3个参数会派上用场</span></span><br><span class="line">  encoder_attention_mask=encoder_extended_attention_mask,</span><br><span class="line">  past_key_values=past_key_values,</span><br><span class="line">  use_cache=use_cache,</span><br><span class="line">  output_attentions=output_attentions,</span><br><span class="line">  output_hidden_states=output_hidden_states,</span><br><span class="line">  return_dict=return_dict,</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+
+<h2 id="BertGenerationDecoder"><a href="#BertGenerationDecoder" class="headerlink" title="BertGenerationDecoder"></a>BertGenerationDecoder</h2><p><code>BertGenerationDecoder</code>只是对<code>BertGenerationEncoder</code>更高一层的封装</p>
+<ul>
+<li><strong>init</strong></li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">  <span class="built_in">super</span>().__init__(config)</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> <span class="keyword">not</span> config.is_decoder:</span><br><span class="line">    logger.warning(<span class="string">&quot;If you want to use `BertGenerationDecoder` as a standalone, add `is_decoder=True.`&quot;</span>)</span><br><span class="line">    <span class="comment"># 复用了BertGenerationEncoder，通过config.is_decoder调整BertGenerationEncoder的行为</span></span><br><span class="line">    self.bert = BertGenerationEncoder(config)</span><br><span class="line">    self.lm_head = BertGenerationOnlyLMHead(config)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>forward</strong></li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">outputs = self.bert(</span><br><span class="line">  input_ids,</span><br><span class="line">  attention_mask=attention_mask,</span><br><span class="line">  position_ids=position_ids,</span><br><span class="line">  head_mask=head_mask,</span><br><span class="line">  inputs_embeds=inputs_embeds,</span><br><span class="line">  encoder_hidden_states=encoder_hidden_states,</span><br><span class="line">  encoder_attention_mask=encoder_attention_mask,</span><br><span class="line">  past_key_values=past_key_values,</span><br><span class="line">  use_cache=use_cache,</span><br><span class="line">  output_attentions=output_attentions,</span><br><span class="line">  output_hidden_states=output_hidden_states,</span><br><span class="line">  return_dict=return_dict,</span><br><span class="line">)</span><br><span class="line"><span class="comment"># 输入的每个token的last hidden layer</span></span><br><span class="line">sequence_output = outputs[<span class="number">0</span>]</span><br><span class="line"><span class="comment"># hidden layer输入vocab的分类头计算每个token的预测值然后存在logits输出</span></span><br><span class="line">prediction_scores = self.lm_head(sequence_output)</span><br></pre></td></tr></table></figure>
+
+<h2 id="模型测试"><a href="#模型测试" class="headerlink" title="模型测试"></a>模型测试</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> BertGenerationTokenizer, BertGenerationDecoder, BertGenerationConfig</span><br><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"></span><br><span class="line">tokenizer = BertGenerationTokenizer.from_pretrained(<span class="string">&#x27;google/bert_for_seq_generation_L-24_bbc_encoder&#x27;</span>)</span><br><span class="line">config = BertGenerationConfig.from_pretrained(<span class="string">&quot;google/bert_for_seq_generation_L-24_bbc_encoder&quot;</span>)</span><br><span class="line">config.is_decoder = <span class="literal">True</span></span><br><span class="line">model = BertGenerationDecoder.from_pretrained(<span class="string">&#x27;google/bert_for_seq_generation_L-24_bbc_encoder&#x27;</span>, config=config)</span><br><span class="line"></span><br><span class="line">inputs = tokenizer(<span class="string">&quot;How are you&quot;</span>, return_token_type_ids=<span class="literal">False</span>, return_tensors=<span class="string">&quot;pt&quot;</span>)</span><br><span class="line">tokenizer.pad_token</span><br><span class="line">outputs = model(**inputs)</span><br><span class="line"></span><br><span class="line">prediction_logits = outputs.logits</span><br><span class="line">prediction_logits.shape</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span>normalizer.cc(<span class="number">51</span>) LOG(INFO) precompiled_charsmap <span class="keyword">is</span> empty. use identity normalization.</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>Some weights of BertGenerationDecoder were <span class="keyword">not</span> initialized <span class="keyword">from</span> the model checkpoint at google/bert_for_seq_generation_L-24_bbc_encoder <span class="keyword">and</span> are newly initialized: [<span class="string">&#x27;lm_head.bias&#x27;</span>, <span class="string">&#x27;lm_head.decoder.weight&#x27;</span>, <span class="string">&#x27;lm_head.decoder.bias&#x27;</span>]</span><br><span class="line">&gt;&gt;&gt;You should probably TRAIN this model on a down-stream task to be able to use it <span class="keyword">for</span> predictions <span class="keyword">and</span> inference.</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>torch.Size([<span class="number">1</span>, <span class="number">3</span>, <span class="number">50358</span>])</span><br></pre></td></tr></table></figure>
+
+<p>最终得到的就是”How are you”对每个vocab的概率</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ul>
+<li>transformers的模型封装的很好，但是因为复用性很强，一个attention模块可以同时充当self-attention和cross-attention使用，这样就导致了阅读源码时会有很多细节需要处理比如每个入参出参的含义，这就增加了阅读源码时的工作量</li>
+<li>优势<ul>
+<li>模型多</li>
+<li>复用性强</li>
+<li>封装完善</li>
+<li>几乎是原生Pytorch实现</li>
+</ul>
+</li>
+<li>劣势<ul>
+<li>只是实现了比较经典的模型</li>
+<li>阅读源码需要对每个模块很熟悉</li>
+<li>封装的过于完善也会导致拓展性差</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/JMeter%20%E6%B5%8B%E8%AF%95%E6%8E%A5%E5%8F%A3%E6%8C%87%E5%8D%97/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -170,7 +419,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2022-04-10 14:42:00 / 修改时间：06:49:25" itemprop="dateCreated datePublished" datetime="2022-04-10T14:42:00+00:00">2022-04-10</time>
+              <time title="创建时间：2022-04-10 14:42:00 / 修改时间：07:00:26" itemprop="dateCreated datePublished" datetime="2022-04-10T14:42:00+00:00">2022-04-10</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -279,7 +528,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/Python%20%E4%B8%AD%E7%9A%84%E8%A3%85%E9%A5%B0%E5%99%A8/">
+    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/09/Python%20%E4%B8%AD%E7%9A%84%E8%A3%85%E9%A5%B0%E5%99%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -293,7 +542,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/04/10/Python%20%E4%B8%AD%E7%9A%84%E8%A3%85%E9%A5%B0%E5%99%A8/" class="post-title-link" itemprop="url">未命名</a>
+            <a href="/2022/04/09/Python%20%E4%B8%AD%E7%9A%84%E8%A3%85%E9%A5%B0%E5%99%A8/" class="post-title-link" itemprop="url">Python 中的装饰器</a>
         </h2>
 
         <div class="post-meta">
@@ -303,7 +552,23 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-04-10 06:49:25" itemprop="dateCreated datePublished" datetime="2022-04-10T06:49:25+00:00">2022-04-10</time>
+              <time title="创建时间：2022-04-09 17:05:00" itemprop="dateCreated datePublished" datetime="2022-04-09T17:05:00+00:00">2022-04-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-04-10 07:00:26" itemprop="dateModified" datetime="2022-04-10T07:00:26+00:00">2022-04-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Python%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">Python学习</span></a>
+                </span>
             </span>
 
           
@@ -351,7 +616,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/Pytorch%20%E4%B8%AD%E7%9A%84%20ModuleList%20&%20Sequential/">
+    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/08/Pytorch%20%E4%B8%AD%E7%9A%84%20ModuleList%20&%20Sequential/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -365,7 +630,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/04/10/Pytorch%20%E4%B8%AD%E7%9A%84%20ModuleList%20&%20Sequential/" class="post-title-link" itemprop="url">未命名</a>
+            <a href="/2022/04/08/Pytorch%20%E4%B8%AD%E7%9A%84%20ModuleList%20&%20Sequential/" class="post-title-link" itemprop="url">Pytorch 中的 ModuleList & Sequential</a>
         </h2>
 
         <div class="post-meta">
@@ -375,7 +640,23 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-04-10 06:49:25" itemprop="dateCreated datePublished" datetime="2022-04-10T06:49:25+00:00">2022-04-10</time>
+              <time title="创建时间：2022-04-08 14:52:00" itemprop="dateCreated datePublished" datetime="2022-04-08T14:52:00+00:00">2022-04-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-04-10 07:00:26" itemprop="dateModified" datetime="2022-04-10T07:00:26+00:00">2022-04-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Pytorch%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">Pytorch学习</span></a>
+                </span>
             </span>
 
           
@@ -422,7 +703,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/Tensor%E4%B8%AD%E7%9A%84%E7%B4%A2%E5%BC%95%E5%92%8C%E7%AD%9B%E9%80%89/">
+    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/07/torch%E5%87%BD%E6%95%B0%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -436,7 +717,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/04/10/Tensor%E4%B8%AD%E7%9A%84%E7%B4%A2%E5%BC%95%E5%92%8C%E7%AD%9B%E9%80%89/" class="post-title-link" itemprop="url">未命名</a>
+            <a href="/2022/04/07/torch%E5%87%BD%E6%95%B0%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">torch常用函数（不断更新）</a>
         </h2>
 
         <div class="post-meta">
@@ -446,7 +727,23 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-04-10 06:49:25" itemprop="dateCreated datePublished" datetime="2022-04-10T06:49:25+00:00">2022-04-10</time>
+              <time title="创建时间：2022-04-07 17:05:00" itemprop="dateCreated datePublished" datetime="2022-04-07T17:05:00+00:00">2022-04-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-04-10 07:00:26" itemprop="dateModified" datetime="2022-04-10T07:00:26+00:00">2022-04-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Pytorch%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">Pytorch学习</span></a>
+                </span>
             </span>
 
           
@@ -460,81 +757,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="Tensor中的索引和筛选"><a href="#Tensor中的索引和筛选" class="headerlink" title="Tensor中的索引和筛选"></a>Tensor中的索引和筛选</h1><ul>
-<li><p>索引：根据下标选出元素，Tensor类型为int</p>
-</li>
-<li><p>筛选：根据True/False筛选元素，Tensor类型为Bool</p>
-<p>索引保持原维度不变，筛选可能会使维度变小</p>
-</li>
-</ul>
-<h2 id="筛选"><a href="#筛选" class="headerlink" title="筛选"></a>筛选</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line">a = torch.randn((<span class="number">3</span>,<span class="number">5</span>))</span><br><span class="line">b = torch.randint(<span class="number">0</span>,<span class="number">3</span>,(<span class="number">5</span>,)).<span class="built_in">bool</span>()</span><br><span class="line"><span class="built_in">print</span>(a)</span><br><span class="line"><span class="built_in">print</span>(b)</span><br><span class="line">a[:,b]</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tensor([[ <span class="number">1.2588</span>,  <span class="number">0.1620</span>, -<span class="number">0.3095</span>,  <span class="number">2.0669</span>, -<span class="number">0.3158</span>],</span><br><span class="line">        [-<span class="number">1.6065</span>, -<span class="number">0.7930</span>, -<span class="number">0.5658</span>,  <span class="number">1.8601</span>, -<span class="number">0.2592</span>],</span><br><span class="line">        [ <span class="number">1.3226</span>,  <span class="number">0.3040</span>, -<span class="number">1.0924</span>,  <span class="number">0.7583</span>, -<span class="number">1.5444</span>]])</span><br><span class="line">tensor([ <span class="literal">True</span>, <span class="literal">False</span>, <span class="literal">False</span>,  <span class="literal">True</span>,  <span class="literal">True</span>])</span><br><span class="line">tensor([[ <span class="number">1.2588</span>,  <span class="number">2.0669</span>, -<span class="number">0.3158</span>],</span><br><span class="line">        [-<span class="number">1.6065</span>,  <span class="number">1.8601</span>, -<span class="number">0.2592</span>],</span><br><span class="line">        [ <span class="number">1.3226</span>,  <span class="number">0.7583</span>, -<span class="number">1.5444</span>]])</span><br></pre></td></tr></table></figure>
-
-<p>可以看出这是在shape[1]上进行了筛选，False的元素会原地删除</p>
-<h2 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line">a = torch.randn((<span class="number">3</span>,<span class="number">5</span>))</span><br><span class="line">b = torch.randint(<span class="number">0</span>,<span class="number">3</span>,(<span class="number">5</span>,))</span><br><span class="line"><span class="built_in">print</span>(a)</span><br><span class="line"><span class="built_in">print</span>(b)</span><br><span class="line">a[:,b]</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tensor([[-<span class="number">1.0592</span>,  <span class="number">0.9445</span>, -<span class="number">0.6265</span>,  <span class="number">0.2607</span>, -<span class="number">0.2166</span>],</span><br><span class="line">        [ <span class="number">1.8283</span>,  <span class="number">0.9678</span>,  <span class="number">0.6175</span>,  <span class="number">2.0904</span>,  <span class="number">0.2356</span>],</span><br><span class="line">        [ <span class="number">0.1864</span>,  <span class="number">1.0110</span>,  <span class="number">0.0425</span>, -<span class="number">1.3611</span>,  <span class="number">1.1043</span>]])</span><br><span class="line">tensor([<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">1</span>])</span><br><span class="line">tensor([[ <span class="number">0.9445</span>,  <span class="number">0.9445</span>,  <span class="number">0.9445</span>, -<span class="number">0.6265</span>,  <span class="number">0.9445</span>],</span><br><span class="line">        [ <span class="number">0.9678</span>,  <span class="number">0.9678</span>,  <span class="number">0.9678</span>,  <span class="number">0.6175</span>,  <span class="number">0.9678</span>],</span><br><span class="line">        [ <span class="number">1.0110</span>,  <span class="number">1.0110</span>,  <span class="number">1.0110</span>,  <span class="number">0.0425</span>,  <span class="number">1.0110</span>]])</span><br></pre></td></tr></table></figure>
-
-<p>可以看出这是在shape[1]上进行了索引，原维度不变，根据下标取出对应的元素    </p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/torch%E5%87%BD%E6%95%B0%E7%AC%94%E8%AE%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="Jongjyh">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Jongjyh的算法空间">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/04/10/torch%E5%87%BD%E6%95%B0%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">未命名</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2022-04-10 06:49:25" itemprop="dateCreated datePublished" datetime="2022-04-10T06:49:25+00:00">2022-04-10</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <ul>
+          <h1 id="torch常用函数"><a href="#torch常用函数" class="headerlink" title="torch常用函数"></a>torch常用函数</h1><ul>
 <li><p>torch.squeeze &lt;-&gt;torch.unsqueeze para:dim=  制定维度降维/升维，[3,1,2]&lt;-&gt;[3,2]</p>
 </li>
 <li><p>Torch.scatter 使用索引数组index对原tensor定位修改</p>
@@ -612,7 +835,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/10/transformers%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E8%AE%A1%E5%88%92%20-%20BertGeneration/">
+    <link itemprop="mainEntityOfPage" href="https://jongjyh.github.io/2022/04/07/Tensor%E4%B8%AD%E7%9A%84%E7%B4%A2%E5%BC%95%E5%92%8C%E7%AD%9B%E9%80%89/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -626,7 +849,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/04/10/transformers%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E8%AE%A1%E5%88%92%20-%20BertGeneration/" class="post-title-link" itemprop="url">未命名</a>
+            <a href="/2022/04/07/Tensor%E4%B8%AD%E7%9A%84%E7%B4%A2%E5%BC%95%E5%92%8C%E7%AD%9B%E9%80%89/" class="post-title-link" itemprop="url">Tensor中的索引和筛选</a>
         </h2>
 
         <div class="post-meta">
@@ -636,7 +859,23 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-04-10 06:49:25" itemprop="dateCreated datePublished" datetime="2022-04-10T06:49:25+00:00">2022-04-10</time>
+              <time title="创建时间：2022-04-07 14:52:00" itemprop="dateCreated datePublished" datetime="2022-04-07T14:52:00+00:00">2022-04-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-04-10 07:00:26" itemprop="dateModified" datetime="2022-04-10T07:00:26+00:00">2022-04-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Pytorch%E5%AD%A6%E4%B9%A0/" itemprop="url" rel="index"><span itemprop="name">Pytorch学习</span></a>
+                </span>
             </span>
 
           
@@ -650,81 +889,23 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="transformers源码阅读计划-BertGeneration"><a href="#transformers源码阅读计划-BertGeneration" class="headerlink" title="transformers源码阅读计划 - BertGeneration"></a>transformers源码阅读计划 - BertGeneration</h1><p> transformers是一个基于Pytorch的NLP框架，集成了模型，训练器，tokenizer一系列工具，而且都封装得非常好。更重要的是这个库也复现了许多非常经典的模型比如Bert，XLNet，所以开始一个transformers的源码阅读计划，一方面提高自己的代码复现能力，一边学习transformers内部的结构。</p>
-<h2 id="BertGeneration"><a href="#BertGeneration" class="headerlink" title="BertGeneration"></a>BertGeneration</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/1907.12461">Papers</a> </p>
-<p>BertGeneration提出用Bert同时充当decoder角色来充分利用预训练成本，具体来说非常简单，按照transformer的思想，encoder和decoder的差别不过多了一层cross attention layer。</p>
-<p>![image-20220409193520425](/Users/noah/Library/Application Support/typora-user-images/image-20220409193520425.png)</p>
-<p><img src="https://tva1.sinaimg.cn/large/e6c9d24ely1h13pd91ihij216e0oi459.jpg" alt="image-20220409193920098"></p>
-<ul>
-<li>论文还对比了不同情况下这种以Bert为原型的Seq2Seq架构在机器翻译上的效果，发现共享参数的效果也不错</li>
-</ul>
-<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p><strong>源码路径（models/bert_generation/modeling_bert_generation.py）</strong></p>
-<p>模型由五个类构成：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationEmbeddings</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line"><span class="comment"># bert的word_embedding</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationPreTrainedModel</span>(<span class="params">PreTrainedModel</span>):</span></span><br><span class="line"><span class="comment"># 一个用来保存和恢复checkpoint的抽象类，继承了transformers内部的独有类PreTrainedModel</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationEncoder</span>(<span class="params">BertGenerationPreTrainedModel</span>):</span></span><br><span class="line"><span class="comment"># 最重要的类，可以根据args 变成 encoder or decoder</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationOnlyLMHead</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line"><span class="comment"># decoder的分类头，用来做vocab的分类的</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertGenerationDecoder</span>(<span class="params">BertGenerationPreTrainedModel</span>):</span></span><br><span class="line"><span class="comment"># encoder的行为和decoder的行为不同，用一个decoder类定义decoder的行为</span></span><br></pre></td></tr></table></figure>
-
-<h2 id="BertGenerationEncoder"><a href="#BertGenerationEncoder" class="headerlink" title="BertGenerationEncoder"></a><strong>BertGenerationEncoder</strong></h2><p>transformers内部的模型其实都是nn.Module的子类，重点关注___<em>init</em>___和<strong>forward</strong>两个函数</p>
-<ul>
-<li><strong>init</strong></li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">  <span class="built_in">super</span>().__init__(config)</span><br><span class="line">  <span class="comment"># config是模型的参数类，定义了模型的一些超参</span></span><br><span class="line">  self.config = config</span><br><span class="line">  <span class="comment"># embeddings 使用了自己定义的embeddings，encoder直接使用了bert内部的encoder</span></span><br><span class="line">  self.embeddings = BertGenerationEmbeddings(config)</span><br><span class="line">  <span class="comment"># is_decoder在config被传入BertEncoder</span></span><br><span class="line">  self.encoder = BertEncoder(config)</span><br><span class="line"></span><br><span class="line">  <span class="comment"># Initialize weights and apply final processing</span></span><br><span class="line">  self.post_init()</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>BertEncoder &amp; BertLayer</li>
-</ul>
-<p>Encoder这个类主要是判断一下是否传入了<code>is_decoder &amp; add_crossattention</code>这两参数，<code>True</code>时行为差异会比较不同，具体来说</p>
-<ul>
-<li><p>Bert Generation这个类复用了transforemrs内部的bert实现<code>BertEncoder</code>&amp;<code>BertLayer</code></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertEncoder</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.config = config</span><br><span class="line">        self.layer = nn.ModuleList([BertLayer(config) <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(config.num_hidden_layers)])</span><br><span class="line">        self.gradient_checkpointing = <span class="literal">False</span></span><br></pre></td></tr></table></figure>
-
-<p>layer使用ModuleList容器包装起来，num_hidden_layers决定了这样的BertLayer有几层，在forward中会用for循环展开进行前向计算</p>
+          <h1 id="Tensor中的索引和筛选"><a href="#Tensor中的索引和筛选" class="headerlink" title="Tensor中的索引和筛选"></a>Tensor中的索引和筛选</h1><ul>
+<li><p>索引：根据下标选出元素，Tensor类型为int</p>
 </li>
-<li><p><code>BertLayer</code>也就是Bert-base的12层layer中的layer实现，当is_decoder传入时会在最末端增加一层cross-attention</p>
+<li><p>筛选：根据True/False筛选元素，Tensor类型为Bool</p>
+<p>索引保持原维度不变，筛选可能会使维度变小</p>
 </li>
 </ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BertLayer</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        self.chunk_size_feed_forward = config.chunk_size_feed_forward</span><br><span class="line">        self.seq_len_dim = <span class="number">1</span></span><br><span class="line">        <span class="comment"># self-attention</span></span><br><span class="line">        self.attention = BertAttention(config)</span><br><span class="line">        self.is_decoder = config.is_decoder</span><br><span class="line">        self.add_cross_attention = config.add_cross_attention</span><br><span class="line">        <span class="comment"># 增加了cross-attention</span></span><br><span class="line">        <span class="keyword">if</span> self.add_cross_attention:</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> self.is_decoder:</span><br><span class="line">                <span class="keyword">raise</span> ValueError(<span class="string">f&quot;<span class="subst">&#123;self&#125;</span> should be used as a decoder model if cross attention is added&quot;</span>)</span><br><span class="line">            <span class="comment"># 发现cross-attention和self-attention使用的是同一个attention类说明进行了复用</span></span><br><span class="line">            self.crossattention = BertAttention(config, position_embedding_type=<span class="string">&quot;absolute&quot;</span>)</span><br><span class="line">        <span class="comment"># layer中的全连接层</span></span><br><span class="line">        self.intermediate = BertIntermediate(config)</span><br><span class="line">        self.output = BertOutput(config)</span><br></pre></td></tr></table></figure>
+<h2 id="筛选"><a href="#筛选" class="headerlink" title="筛选"></a>筛选</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line">a = torch.randn((<span class="number">3</span>,<span class="number">5</span>))</span><br><span class="line">b = torch.randint(<span class="number">0</span>,<span class="number">3</span>,(<span class="number">5</span>,)).<span class="built_in">bool</span>()</span><br><span class="line"><span class="built_in">print</span>(a)</span><br><span class="line"><span class="built_in">print</span>(b)</span><br><span class="line">a[:,b]</span><br></pre></td></tr></table></figure>
 
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> self.is_decoder <span class="keyword">and</span> encoder_hidden_states <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">hasattr</span>(self, <span class="string">&quot;crossattention&quot;</span>):</span><br><span class="line">        <span class="keyword">raise</span> ValueError(</span><br><span class="line">            <span class="string">f&quot;If `encoder_hidden_states` are passed, <span class="subst">&#123;self&#125;</span> has to be instantiated with cross-attention layers by setting `config.add_cross_attention=True`&quot;</span></span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="comment"># cross_attn cached key/values tuple is at positions 3,4 of past_key_value tuple</span></span><br><span class="line">    cross_attn_past_key_value = past_key_value[-<span class="number">2</span>:] <span class="keyword">if</span> past_key_value <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">else</span> <span class="literal">None</span></span><br><span class="line">    cross_attention_outputs = self.crossattention(</span><br><span class="line">        attention_output, <span class="comment"># self-attn的输出做cross-attn的Q输入</span></span><br><span class="line">        attention_mask,</span><br><span class="line">        head_mask,</span><br><span class="line">        encoder_hidden_states,<span class="comment"># 来自encoder的隐藏层做K与V的输入</span></span><br><span class="line">        encoder_attention_mask,</span><br><span class="line">        cross_attn_past_key_value,</span><br><span class="line">        output_attentions,</span><br><span class="line">    )</span><br><span class="line">    attention_output = cross_attention_outputs[<span class="number">0</span>]</span><br><span class="line">    outputs = outputs + cross_attention_outputs[<span class="number">1</span>:-<span class="number">1</span>]  <span class="comment"># add cross attentions if we output attention weights</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tensor([[ <span class="number">1.2588</span>,  <span class="number">0.1620</span>, -<span class="number">0.3095</span>,  <span class="number">2.0669</span>, -<span class="number">0.3158</span>],</span><br><span class="line">        [-<span class="number">1.6065</span>, -<span class="number">0.7930</span>, -<span class="number">0.5658</span>,  <span class="number">1.8601</span>, -<span class="number">0.2592</span>],</span><br><span class="line">        [ <span class="number">1.3226</span>,  <span class="number">0.3040</span>, -<span class="number">1.0924</span>,  <span class="number">0.7583</span>, -<span class="number">1.5444</span>]])</span><br><span class="line">tensor([ <span class="literal">True</span>, <span class="literal">False</span>, <span class="literal">False</span>,  <span class="literal">True</span>,  <span class="literal">True</span>])</span><br><span class="line">tensor([[ <span class="number">1.2588</span>,  <span class="number">2.0669</span>, -<span class="number">0.3158</span>],</span><br><span class="line">        [-<span class="number">1.6065</span>,  <span class="number">1.8601</span>, -<span class="number">0.2592</span>],</span><br><span class="line">        [ <span class="number">1.3226</span>,  <span class="number">0.7583</span>, -<span class="number">1.5444</span>]])</span><br></pre></td></tr></table></figure>
 
-<ul>
-<li><strong>forward的输入</strong></li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">    self,</span></span></span><br><span class="line"><span class="params"><span class="function">    input_ids=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    attention_mask=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    position_ids=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    head_mask=<span class="literal">None</span>,<span class="comment"># 前四个都是tokenizer的输出</span></span></span></span><br><span class="line"><span class="params"><span class="function">    inputs_embeds=<span class="literal">None</span>,<span class="comment"># 可以直接输入embeding而不是ids，input_ids,inputs_embeds只能输入一个</span></span></span></span><br><span class="line"><span class="params"><span class="function">    encoder_hidden_states=<span class="literal">None</span>,<span class="comment"># 作为decoder时会使用，Cross-Attn的KV</span></span></span></span><br><span class="line"><span class="params"><span class="function">    encoder_attention_mask=<span class="literal">None</span>,<span class="comment"># 作为decoder时会使用，用来屏蔽[PAD]</span></span></span></span><br><span class="line"><span class="params"><span class="function">    past_key_values=<span class="literal">None</span>,<span class="comment"># 作为decoder时会使用，预先算好的所有BertLayer的KV</span></span></span></span><br><span class="line"><span class="params"><span class="function">    use_cache=<span class="literal">None</span>,<span class="comment"># 作为encoder时，True会保留所有的BertLayer的KV然后供decoder使用也就是上面的arg</span></span></span></span><br><span class="line"><span class="params"><span class="function">    output_attentions=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    output_hidden_states=<span class="literal">None</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">    return_dict=<span class="literal">None</span>,<span class="comment"># 输出时调整输出格式的一些bool参数，详细可以去看doc</span></span></span></span><br><span class="line"><span class="params"><span class="function"></span>):</span></span><br></pre></td></tr></table></figure>
+<p>可以看出这是在shape[1]上进行了筛选，False的元素会原地删除</p>
+<h2 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line">a = torch.randn((<span class="number">3</span>,<span class="number">5</span>))</span><br><span class="line">b = torch.randint(<span class="number">0</span>,<span class="number">3</span>,(<span class="number">5</span>,))</span><br><span class="line"><span class="built_in">print</span>(a)</span><br><span class="line"><span class="built_in">print</span>(b)</span><br><span class="line">a[:,b]</span><br></pre></td></tr></table></figure>
 
-<p>forward函数也只是简单对encoder进行计算一下然后返回结果</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">embedding_output = self.embeddings(</span><br><span class="line">  input_ids=input_ids,</span><br><span class="line">  position_ids=position_ids,</span><br><span class="line">  inputs_embeds=inputs_embeds,</span><br><span class="line">  past_key_values_length=past_key_values_length,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">encoder_outputs = self.encoder(</span><br><span class="line">  embedding_output,</span><br><span class="line">  attention_mask=extended_attention_mask,</span><br><span class="line">  head_mask=head_mask,</span><br><span class="line">  encoder_hidden_states=encoder_hidden_states,<span class="comment"># 当is_decoder=True时以下3个参数会派上用场</span></span><br><span class="line">  encoder_attention_mask=encoder_extended_attention_mask,</span><br><span class="line">  past_key_values=past_key_values,</span><br><span class="line">  use_cache=use_cache,</span><br><span class="line">  output_attentions=output_attentions,</span><br><span class="line">  output_hidden_states=output_hidden_states,</span><br><span class="line">  return_dict=return_dict,</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tensor([[-<span class="number">1.0592</span>,  <span class="number">0.9445</span>, -<span class="number">0.6265</span>,  <span class="number">0.2607</span>, -<span class="number">0.2166</span>],</span><br><span class="line">        [ <span class="number">1.8283</span>,  <span class="number">0.9678</span>,  <span class="number">0.6175</span>,  <span class="number">2.0904</span>,  <span class="number">0.2356</span>],</span><br><span class="line">        [ <span class="number">0.1864</span>,  <span class="number">1.0110</span>,  <span class="number">0.0425</span>, -<span class="number">1.3611</span>,  <span class="number">1.1043</span>]])</span><br><span class="line">tensor([<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">1</span>])</span><br><span class="line">tensor([[ <span class="number">0.9445</span>,  <span class="number">0.9445</span>,  <span class="number">0.9445</span>, -<span class="number">0.6265</span>,  <span class="number">0.9445</span>],</span><br><span class="line">        [ <span class="number">0.9678</span>,  <span class="number">0.9678</span>,  <span class="number">0.9678</span>,  <span class="number">0.6175</span>,  <span class="number">0.9678</span>],</span><br><span class="line">        [ <span class="number">1.0110</span>,  <span class="number">1.0110</span>,  <span class="number">1.0110</span>,  <span class="number">0.0425</span>,  <span class="number">1.0110</span>]])</span><br></pre></td></tr></table></figure>
 
-<h2 id="BertGenerationDecoder"><a href="#BertGenerationDecoder" class="headerlink" title="BertGenerationDecoder"></a>BertGenerationDecoder</h2><p><code>BertGenerationDecoder</code>只是对<code>BertGenerationEncoder</code>更高一层的封装</p>
-<ul>
-<li><strong>init</strong></li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self, config</span>):</span></span><br><span class="line">  <span class="built_in">super</span>().__init__(config)</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> <span class="keyword">not</span> config.is_decoder:</span><br><span class="line">    logger.warning(<span class="string">&quot;If you want to use `BertGenerationDecoder` as a standalone, add `is_decoder=True.`&quot;</span>)</span><br><span class="line">    <span class="comment"># 复用了BertGenerationEncoder，通过config.is_decoder调整BertGenerationEncoder的行为</span></span><br><span class="line">    self.bert = BertGenerationEncoder(config)</span><br><span class="line">    self.lm_head = BertGenerationOnlyLMHead(config)</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>forward</strong></li>
-</ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">outputs = self.bert(</span><br><span class="line">  input_ids,</span><br><span class="line">  attention_mask=attention_mask,</span><br><span class="line">  position_ids=position_ids,</span><br><span class="line">  head_mask=head_mask,</span><br><span class="line">  inputs_embeds=inputs_embeds,</span><br><span class="line">  encoder_hidden_states=encoder_hidden_states,</span><br><span class="line">  encoder_attention_mask=encoder_attention_mask,</span><br><span class="line">  past_key_values=past_key_values,</span><br><span class="line">  use_cache=use_cache,</span><br><span class="line">  output_attentions=output_attentions,</span><br><span class="line">  output_hidden_states=output_hidden_states,</span><br><span class="line">  return_dict=return_dict,</span><br><span class="line">)</span><br><span class="line"><span class="comment"># 输入的每个token的last hidden layer</span></span><br><span class="line">sequence_output = outputs[<span class="number">0</span>]</span><br><span class="line"><span class="comment"># hidden layer输入vocab的分类头计算每个token的预测值然后存在logits输出</span></span><br><span class="line">prediction_scores = self.lm_head(sequence_output)</span><br></pre></td></tr></table></figure>
-
-<h2 id="模型测试"><a href="#模型测试" class="headerlink" title="模型测试"></a>模型测试</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> transformers <span class="keyword">import</span> BertGenerationTokenizer, BertGenerationDecoder, BertGenerationConfig</span><br><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"></span><br><span class="line">tokenizer = BertGenerationTokenizer.from_pretrained(<span class="string">&#x27;google/bert_for_seq_generation_L-24_bbc_encoder&#x27;</span>)</span><br><span class="line">config = BertGenerationConfig.from_pretrained(<span class="string">&quot;google/bert_for_seq_generation_L-24_bbc_encoder&quot;</span>)</span><br><span class="line">config.is_decoder = <span class="literal">True</span></span><br><span class="line">model = BertGenerationDecoder.from_pretrained(<span class="string">&#x27;google/bert_for_seq_generation_L-24_bbc_encoder&#x27;</span>, config=config)</span><br><span class="line"></span><br><span class="line">inputs = tokenizer(<span class="string">&quot;How are you&quot;</span>, return_token_type_ids=<span class="literal">False</span>, return_tensors=<span class="string">&quot;pt&quot;</span>)</span><br><span class="line">tokenizer.pad_token</span><br><span class="line">outputs = model(**inputs)</span><br><span class="line"></span><br><span class="line">prediction_logits = outputs.logits</span><br><span class="line">prediction_logits.shape</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span>normalizer.cc(<span class="number">51</span>) LOG(INFO) precompiled_charsmap <span class="keyword">is</span> empty. use identity normalization.</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>Some weights of BertGenerationDecoder were <span class="keyword">not</span> initialized <span class="keyword">from</span> the model checkpoint at google/bert_for_seq_generation_L-24_bbc_encoder <span class="keyword">and</span> are newly initialized: [<span class="string">&#x27;lm_head.bias&#x27;</span>, <span class="string">&#x27;lm_head.decoder.weight&#x27;</span>, <span class="string">&#x27;lm_head.decoder.bias&#x27;</span>]</span><br><span class="line">&gt;&gt;&gt;You should probably TRAIN this model on a down-stream task to be able to use it <span class="keyword">for</span> predictions <span class="keyword">and</span> inference.</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>torch.Size([<span class="number">1</span>, <span class="number">3</span>, <span class="number">50358</span>])</span><br></pre></td></tr></table></figure>
-
-<p>最终得到的就是”How are you”对每个vocab的概率</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ul>
-<li>transformers的模型封装的很好，但是因为复用性很强，一个attention模块可以同时充当self-attention和cross-attention使用，这样就导致了阅读源码时会有很多细节需要处理比如每个入参出参的含义，这就增加了阅读源码时的工作量</li>
-<li>优势<ul>
-<li>模型多</li>
-<li>复用性强</li>
-<li>封装完善</li>
-<li>几乎是原生Pytorch实现</li>
-</ul>
-</li>
-<li>劣势<ul>
-<li>只是实现了比较经典的模型</li>
-<li>阅读源码需要对每个模块很熟悉</li>
-<li>封装的过于完善也会导致拓展性差</li>
-</ul>
-</li>
-</ul>
+<p>可以看出这是在shape[1]上进行了索引，原维度不变，根据下标取出对应的元素    </p>
 
       
     </div>
@@ -775,7 +956,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-04-10 06:49:25" itemprop="dateModified" datetime="2022-04-10T06:49:25+00:00">2022-04-10</time>
+                <time title="修改时间：2022-04-10 07:00:26" itemprop="dateModified" datetime="2022-04-10T07:00:26+00:00">2022-04-10</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -910,16 +1091,16 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">7</span>
+          <span class="site-state-item-count">8</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
-        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-count">5</span>
         <span class="site-state-item-name">分类</span>
       </div>
       <div class="site-state-item site-state-tags">
-        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-count">6</span>
         <span class="site-state-item-name">标签</span>
       </div>
   </nav>
