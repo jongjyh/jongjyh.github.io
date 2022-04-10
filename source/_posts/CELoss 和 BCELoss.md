@@ -1,5 +1,8 @@
 ---
 title: 机器学习 - CELoss 和 BCELoss
+tags: [Machine Learning]
+date: 2022-04-06 13:17:00
+categories: 机器学习
 ---
 # CELoss 和 BCELoss
 
