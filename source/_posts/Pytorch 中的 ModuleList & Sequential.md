@@ -1,3 +1,10 @@
+---
+title: Pytorch 中的 ModuleList & Sequential
+tags: [Pytorch]
+date: 2022-04-08 14:52:00
+categories: Pytorch学习
+---
+
 # Pytorch 中的 ModuleList & Sequential
 
 ModuleList & Sequential 都是 torch.nn中重要的容器类，是为了方便定义结构化的可复用的网络结构而产生，但是两者的功能又有略微不同。

@@ -1,3 +1,10 @@
+---
+title: Tensor中的索引和筛选
+tags: [Pytorch]
+date: 2022-04-07 14:52:00
+categories: Pytorch学习
+---
+
 # Tensor中的索引和筛选
 
 - 索引：根据下标选出元素，Tensor类型为int

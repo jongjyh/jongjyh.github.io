@@ -1,3 +1,12 @@
+---
+title: torch常用函数（不断更新）
+tags: [Pytorch]
+date: 2022-04-07 17:05:00
+categories: Pytorch学习
+---
+
+# torch常用函数
+
 - torch.squeeze <->torch.unsqueeze para:dim=  制定维度降维/升维，[3,1,2]<->[3,2]
 
 - Torch.scatter 使用索引数组index对原tensor定位修改

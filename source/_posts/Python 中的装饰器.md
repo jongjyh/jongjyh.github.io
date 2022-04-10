@@ -1,3 +1,10 @@
+---
+title: Python 中的装饰器
+tags: [Python]
+date: 2022-04-09 17:05:00
+categories: Python学习
+---
+
 # Python 中的装饰器
 
 最近正在看transformers中的一些源码，transfomers中使用了Python语言中许多特性，比如装饰器等，结合[Python3-Cookbook](https://python3-cookbook.readthedocs.io/zh_CN/latest/chapters/p09_meta_programming.html)一边看源码一边学习一些特性

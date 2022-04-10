@@ -1,3 +1,10 @@
+---
+title: transformers源码阅读计划 - BertGeneration
+tags: [论文,Pytorch]
+date: 2022-04-10 17:05:00
+categories: 论文&实现
+---
+
 # transformers源码阅读计划 - BertGeneration
 
  transformers是一个基于Pytorch的NLP框架，集成了模型，训练器，tokenizer一系列工具，而且都封装得非常好。更重要的是这个库也复现了许多非常经典的模型比如Bert，XLNet，所以开始一个transformers的源码阅读计划，一方面提高自己的代码复现能力，一边学习transformers内部的结构。
