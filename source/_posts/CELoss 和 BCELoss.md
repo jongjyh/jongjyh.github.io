@@ -1,3 +1,6 @@
+---
+title: 机器学习 - CELoss 和 BCELoss
+---
 # CELoss 和 BCELoss
 
 CE 和BCE都是深度学习里常用来衡量prediction和label之间的差距的损失函数，但是这两者在用法和表达式上又有些差别
