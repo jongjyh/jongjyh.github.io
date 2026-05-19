@@ -1,61 +1,62 @@
-primary_name: "Your Name"
-secondary_name: ""
-navbar_name: "Your Name"
+primary_name: "Zhongzhi Chen"
+secondary_name: "陈忠智"
+navbar_name: "Zhongzhi Chen"
 
 positions:
-- name: Title or Position
-- name: Affiliation Name
-  logo: /assets/images/badges/MIT_Social_circle.png  # Logo is optional
+- name: Researcher, Tencent Hunyuan
+  logo: /assets/images/hy.png
 
-
-email: "your@email.com"
-# cv_link: link-to-your-cv-file
-gscholar: xFmQpf4AAAAJ  # This is an example, replace it with your own Google Scholar ID
-github: your_github_id
-twitter: your_twitter_id  # Do not include the '@' symbol
-# wechat_qrcode: /assets/images/etc/wechat.jpg
-# wechat_prompt: >-
-#   Please tell me your <strong>name</strong> and <strong>affiliation</strong> (current or past) when adding my wechat. Thanks!
-# linkedin: your-linked-in-id
-# orcid: 0000-0000-0000-0000
+email: "jongjyh0221@gmail.com"
+gscholar: D3S6g3IAAAAJ
+github: jongjyh
 
 short_bio_text_justify: false
 short_bio: >-
   <p>
-    A <a href="https://en.wikipedia.org/wiki/Bicolor_cat" target="_blank">bicolor cat</a> is a cat with white fur combined with fur of some other colour, for example solid black, tabby, or colourpointed.
+    I am currently a researcher on the Pre-training Team at <a href="https://hunyuan.tencent.com/research?page=1" target="_blank">Tencent Hunyuan</a>. My current work focuses on improving training stability of LLMs and exploring efficient Pre-training. 
   </p>
   <p>
-    There are various patterns of a bicolour cat. These range from the Van-patterned (colour on the crown of the head 
-    and the tail only) to a solid colour with a throat locket or medallion. Bicolour coats are found in many cat breeds, 
-    as well as being common in domestic longhair and domestic shorthair cats.
+    I received both my B.S. and M.S. degrees from Beihang University, under the supervision of Prof. <a href='https://shi.buaa.edu.cn/buaa_95012/en/index.htm' target='_blank'>Qinghong Yang</a>.
+    My research interests lie in the interpretability of llms and efficient Transformer training.
+    Outside of work, I share my life with a cat named <a href='/assets/images/caiyuan.png' target='_blank'>Caiyuan</a>.
   </p>
 
 portrait_url: /assets/images/photos/portrait.jpg
-portrait_caption: >-
-  Photo by Manja Vitolic on Unsplash (this caption is optional, comment it out to disable).
 
 education:
-- name: Massachusetts Institute of Technology
-  logo: /assets/images/badges/MIT_Social_circle.png
-  position: >- 
-    Department of Electrical Engineering and Computer Science <br/>
-    Ph.D. Student
-  date: Sep. 2024 - present
-- name: Peking University
-  logo: /assets/images/badges/PKU_red.png
-  position: B.S. in Computer Science
-  date: Sep. 2019 - Jul. 2021
+- name: Beihang University
+  logo: /assets/images/bh.png
+  position: >-
+    M.S. in Software Engineering
+  date: Sep. 2021 - Jun. 2024
+- name: Beihang University
+  logo: /assets/images/bh.png
+  position: >-
+    B.S. in Software Engineering
+  date: Sep. 2017 - Jun. 2021
 
-# experience:
-# - name: Peking University
-#   logo: /assets/images/badges/PKU_red.png
-#   position: Research Intern
-#   date: Sep. 2019 - Jul. 2021
+experience:
+- name: "<a href='https://hunyuan.tencent.com/research?page=1' target='_blank'>Tencent Hunyuan</a>"
+  logo: /assets/images/hy.png
+  position: Researcher
+  date: 2024 - present
+- name: "<a href='https://www.microsoft.com/en-us/aprd/aboutus/team-stca' target='_blank'>Microsoft STCA</a>"
+  logo: /assets/images/ms.png
+  position: "Research Intern · Advised by <a href='https://dblp.uni-trier.de/pid/305/9852.html' target='_blank'>Zengxuan Wen</a> and <a href='https://dblp.uni-trier.de/pid/331/5454.html' target='_blank'>Zhiqiang Zuo</a>"
+  date: 2023
+- name: "<a href='https://www.baai.ac.cn/en' target='_blank'>BAAI</a>"
+  logo: /assets/images/baai.png
+  position: "Research Intern · Advised by <a href='https://scholar.google.com/citations?user=-eJHVt8AAAAJ&hl=en' target='_blank'>Ledell Wu</a> and <a href='https://scholar.google.com/citations?user=PqsOPSwAAAAJ' target='_blank'>Guang Liu</a>"
+  date: 2022 - 2023
 
 awards:
-- name: Award Name 2
-  date: 2024
-- name: Award Name 1 
+- name: National Graduate Scholarship
+  date: 2023
+- name: Academic Excellence Scholarship
+  date: 2022
+- name: Outstanding Undergraduate Graduate Award
   date: 2021
-- name: A quick brown fox jumps over the lazy dog and runs away award
-  date: 2021
+- name: Outstanding Student Leader Award
+  date: 2020
+- name: National College Innovation and Entrepreneurship Competition Award
+  date: 2020

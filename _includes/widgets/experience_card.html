@@ -9,7 +9,7 @@
                             <h6>Education</h6>
                             <ul class="list-unstyled mb-1">
                                 {% for item in site.data.profile.education %}
-                                <li class="media mb-1">
+                                <li class="media mb-3">
                                     <img src="{{ item.logo | relative_url }}" alt="{{ item.name }}" style="width: 18px;" class="mr-1 mt-1">
                                     <div class="media-body">
                                         <div>{{ item.name }}</div>
@@ -32,7 +32,7 @@
                             <h6>Experience</h6>
                             <ul class="list-unstyled mb-1">
                                 {% for item in site.data.profile.experience %}
-                                <li class="media mb-1">
+                                <li class="media mb-3">
                                     <img src="{{ item.logo | relative_url }}" alt="{{ item.name }}" style="width: 18px;" class="mr-1 mt-1">
                                     <div class="media-body">
                                         <div>{{ item.name }}</div>
